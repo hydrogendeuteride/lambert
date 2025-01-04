@@ -3,34 +3,27 @@ project(lambert)
 
 set(CMAKE_CXX_STANDARD 17)
 
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -ffloat-store -fno-fast-math")
-set(CMAKE_CXX_FLAGS_DEBUG "-g")
-set(CMAKE_CXX_FLAGS_RELEASE "-O2 -march=native -mavx")
+if(EMSCRIPTEN)
+    message(STATUS "Emscripten detected. Configuring for WebAssembly.")
+    set(CMAKE_CXX_COMPILER_ID "Emscripten")
 
-set(SOURCES
-        main.cpp
-        battin1984.cpp
-)
+    set(CMAKE_EXECUTABLE_SUFFIX ".html")
+    set(EXPORTED_FUNCTIONS "-s EXPORTED_FUNCTIONS='[\"_battin1984_wrapper\", \"_malloc\", \"_free\"]'")
+    set(EXPORTED_RUNTIME_METHODS "-s EXPORTED_RUNTIME_METHODS='[\"_malloc\", \"_free\", \"onRuntimeInitialized\"]'")
+    set(MODULARIZE_FLAG "-s MODULARIZE=1")
+    set(EXPORT_ES6_FLAG "-s EXPORT_ES6=1")
+    set(ENVIRONMENT_FLAG "-s ENVIRONMENT=web")
+    set(NO_ENTRY_FLAG "--no-entry")
 
-if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
-    message(STATUS "Emscripten detected, configuring for WebAssembly.")
-
-    execute_process(
-            COMMAND ${CMAKE_COMMAND} -E echo_expand "${CMAKE_SOURCE_DIR}/../emsdk/upstream/emscripten"
-            OUTPUT_VARIABLE EMSCRIPTEN_PATH
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-
-    include_directories(${EMSCRIPTEN_PATH}/system/include)
-
-    set(CMAKE_EXECUTABLE_SUFFIX ".js")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s MODULARIZE=1 -s EXPORT_ES6=1 -s USE_ES6_IMPORT_META=1 -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap'] -s ENVIRONMENT='web,node'")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -s WASM=1")
-
-    add_executable(lambert ${SOURCES})
-
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXPORTED_FUNCTIONS} ${EXPORTED_RUNTIME_METHODS} ${MODULARIZE_FLAG} ${EXPORT_ES6_FLAG} ${ENVIRONMENT_FLAG} ${NO_ENTRY_FLAG}")
 else()
-    add_executable(lambert ${SOURCES})
+    message(STATUS "Native build detected.")
 endif()
 
-target_include_directories(lambert PRIVATE ${EIGEN3_INCLUDE_DIR})
+add_library(battin1984 SHARED battin1984.cpp)
+add_executable(battin1984_exec battin1984.cpp)
+add_executable(main main.cpp)
+
+target_link_libraries(main PUBLIC battin1984)
+
+target_include_directories(battin1984 PRIVATE ${EIGEN3_INCLUDE_DIR})

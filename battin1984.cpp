@@ -1,5 +1,6 @@
 #include <cmath>
 #include "battin1984.h"
+#include <iostream>
 
 double getTransferAngle(vec3d &r1, vec3d &r2, bool prograde)
 {
@@ -219,12 +220,18 @@ extern "C"
 #ifdef EMSCRIPTEN
     EMSCRIPTEN_KEEPALIVE
 #endif
-    void battin1984_wrapper(double mu, double *r1, double *r2, double tof, bool prograde, double *result)
+    void battin1984_wrapper(double mu, const double r1[3], const double r2[3], double tof, bool prograde, double result[6])
     {
-        vec3d r1_vec(r1[0], r1[1], r1[2]);
-        vec3d r2_vec(r2[0], r2[1], r2[2]);
+        std::cout << "Input r1: " << r1[0] << ", " << r1[1] << ", " << r1[2] << std::endl;
+        std::cout << "Input r2: " << r2[0] << ", " << r2[1] << ", " << r2[2] << std::endl;
+
+        vec3d r1_vec = {r1[0], r1[1], r1[2]};
+        vec3d r2_vec = {r2[0], r2[1], r2[2]};
 
         auto [v1, v2] = battin1984(mu, r1_vec, r2_vec, tof, prograde);
+
+        std::cout << "Result v1: " << v1[0] << ", " << v1[1] << ", " << v1[2] << std::endl;
+        std::cout << "Result v2: " << v2[0] << ", " << v2[1] << ", " << v2[2] << std::endl;
 
         result[0] = v1[0];
         result[1] = v1[1];

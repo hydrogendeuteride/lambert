@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Lambert Problem Demo</title>
+</head>
+<body>
+<script type="module">
+    import createModule from './build/battin1984_exec.js';
+
+    createModule().then((Module) => {
+        const mu = 39.47692641;
+        const tof = 0.010794065;
+        const prograde = true;
+        const r1 = [0.159321004, 0.579266185, 0.052359607];
+        const r2 = [0.057594337, 0.605750797, 0.068345246];
+        const result = new Float64Array(6);
+
+        console.log("JS Input r1:", r1);
+        console.log("JS Input r2:", r2);
+
+        const r1Ptr = Module._malloc(3 * 8);
+        const r2Ptr = Module._malloc(3 * 8);
+        const resultPtr = Module._malloc(6 * 8);
+
+        Module.HEAPF64.set(r1, r1Ptr / 8);
+        Module.HEAPF64.set(r2, r2Ptr / 8);
+
+        Module._battin1984_wrapper(mu, r1Ptr, r2Ptr, tof, prograde, resultPtr);
+
+        const resultArray = new Float64Array(Module.HEAPF64.buffer, resultPtr, 6);
+
+        console.log('Result (v1, v2):', resultArray);
+
+        Module._free(r1Ptr);
+        Module._free(r2Ptr);
+        Module._free(resultPtr);
+    });
+</script>
+</body>
+</html>

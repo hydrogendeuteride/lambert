@@ -20,7 +20,7 @@ extern "C"
 #ifdef EMSCRIPTEN
     EMSCRIPTEN_KEEPALIVE
 #endif
-    void battin1984_wrapper(double mu, double *r1, double *r2, double tof, bool prograde, double *result);
+    void battin1984_wrapper(double mu, const double r1[3], const double r2[3], double tof, bool prograde, double result[6]);
 }
 
 #endif //LAMBERT_BATTIN1984_H
