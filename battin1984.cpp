@@ -2,7 +2,7 @@
 #include "battin1984.h"
 #include <iostream>
 
-double getTransferAngle(vec3d &r1, vec3d &r2, bool prograde)
+double getTransferAngle(vec3d &r1, vec3d &r2, bool prograde, bool shortPath)
 {
     vec3d cross = r1.cross(r2);
     if (cross.isZero(tol))
@@ -32,6 +32,17 @@ double getTransferAngle(vec3d &r1, vec3d &r2, bool prograde)
         dTheta = (alpha < 0) ? theta0 : (2 * M_PI - theta0);
     }
 
+    if (shortPath)
+    {
+        if (dTheta > M_PI)
+            dTheta = 2 * M_PI - dTheta;
+    }
+    else
+    {
+        if (dTheta < M_PI)
+            dTheta = 2 * M_PI - dTheta;
+    }
+
     return dTheta;
 }
 
@@ -45,7 +56,7 @@ double getLambda(double c, double s, double dTheta)
 
 double getL1(double lambda)
 {
-    double l1 = ((1. - lambda) / std::pow(1. + lambda, 2.));
+    double l1 = std::pow((1. - lambda) / (1. + lambda), 2.);
     return l1;
 }
 
@@ -66,7 +77,7 @@ double xiAtX(double x, int levels = 125)
     {
         m1 += 1;
         gamma = std::pow(m1 + 3., 2.) / (4. * std::pow(m1 + 3., 2.) - 1.);
-        delta = 1. / (1. + gamma + eta + delta);
+        delta = 1. / (1. + gamma * eta * delta);
         u = u * (delta - 1.);
         sigma = sigma + u;
     }
@@ -167,21 +178,25 @@ double battinSecondEq(double u, double h1, double h2)
 
 
 std::tuple<vec3d, vec3d> battin1984(double mu, vec3d &r1, vec3d &r2, double tof,
-                                    bool prograde, int maxIter, double atol)
+                                    bool prograde, int maxIter, double atol, int nRev, bool shortPath)
 {
     double r1_norm = r1.norm();
     double r2_norm = r2.norm();
     double c_norm = (r2 - r1).norm();
 
-    double semiperimeter = (r1_norm + r2_norm + c_norm) / 2;
-    double dtheta = getTransferAngle(r1, r2, prograde);
+    double semiperimeter = (r1_norm + r2_norm + c_norm) / 2.0;
+    double dtheta = getTransferAngle(r1, r2, prograde, shortPath);
+    if (nRev > 0)
+    {
+        dtheta += 2 * M_PI * nRev;
+    }
 
     double lambda = getLambda(c_norm, semiperimeter, dtheta);
 
     double l1 = getL1(lambda);
     double m = getM(mu, tof, semiperimeter, lambda);
 
-    double T = std::sqrt(8. * mu / std::pow(semiperimeter, 3) * tof);
+    double T = std::sqrt(8. * mu / std::pow(semiperimeter, 3)) * tof;
     double Tp = (4. / 3.) * (1 - std::pow(lambda, 3));
 
     double x0 = (T > Tp) ? l1 : 0;
@@ -218,26 +233,26 @@ std::tuple<vec3d, vec3d> battin1984(double mu, vec3d &r1, vec3d &r2, double tof,
 extern "C"
 {
 #ifdef EMSCRIPTEN
-    EMSCRIPTEN_KEEPALIVE
+EMSCRIPTEN_KEEPALIVE
 #endif
-    void battin1984_wrapper(double mu, const double r1[3], const double r2[3], double tof, bool prograde, double result[6])
-    {
-        std::cout << "Input r1: " << r1[0] << ", " << r1[1] << ", " << r1[2] << std::endl;
-        std::cout << "Input r2: " << r2[0] << ", " << r2[1] << ", " << r2[2] << std::endl;
+void battin1984_wrapper(double mu, const double r1[3], const double r2[3], double tof, bool prograde, double result[6])
+{
+    std::cout << "Input r1: " << r1[0] << ", " << r1[1] << ", " << r1[2] << std::endl;
+    std::cout << "Input r2: " << r2[0] << ", " << r2[1] << ", " << r2[2] << std::endl;
 
-        vec3d r1_vec = {r1[0], r1[1], r1[2]};
-        vec3d r2_vec = {r2[0], r2[1], r2[2]};
+    vec3d r1_vec = {r1[0], r1[1], r1[2]};
+    vec3d r2_vec = {r2[0], r2[1], r2[2]};
 
-        auto [v1, v2] = battin1984(mu, r1_vec, r2_vec, tof, prograde);
+    auto [v1, v2] = battin1984(mu, r1_vec, r2_vec, tof, prograde);
 
-        std::cout << "Result v1: " << v1[0] << ", " << v1[1] << ", " << v1[2] << std::endl;
-        std::cout << "Result v2: " << v2[0] << ", " << v2[1] << ", " << v2[2] << std::endl;
+    std::cout << "Result v1: " << v1[0] << ", " << v1[1] << ", " << v1[2] << std::endl;
+    std::cout << "Result v2: " << v2[0] << ", " << v2[1] << ", " << v2[2] << std::endl;
 
-        result[0] = v1[0];
-        result[1] = v1[1];
-        result[2] = v1[2];
-        result[3] = v2[0];
-        result[4] = v2[1];
-        result[5] = v2[2];
-    }
+    result[0] = v1[0];
+    result[1] = v1[1];
+    result[2] = v1[2];
+    result[3] = v2[0];
+    result[4] = v2[1];
+    result[5] = v2[2];
+}
 }

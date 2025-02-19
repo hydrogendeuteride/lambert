@@ -12,15 +12,16 @@ typedef Eigen::Vector3d vec3d;
 constexpr double tol = 1e-10;
 
 std::tuple<vec3d, vec3d> battin1984(double mu, vec3d &r1, vec3d &r2, double tof,
-                                    bool prograde = true, int maxIter = 100, double atol = tol);
+                                    bool prograde = true, int maxIter = 100, double atol = tol, int nRev = 0,
+                                    bool shortPath = true);
 
 extern "C"
 {
 
 #ifdef EMSCRIPTEN
-    EMSCRIPTEN_KEEPALIVE
+EMSCRIPTEN_KEEPALIVE
 #endif
-    void battin1984_wrapper(double mu, const double r1[3], const double r2[3], double tof, bool prograde, double result[6]);
+void battin1984_wrapper(double mu, const double r1[3], const double r2[3], double tof, bool prograde, double result[6]);
 }
 
 #endif //LAMBERT_BATTIN1984_H
