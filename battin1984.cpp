@@ -230,6 +230,12 @@ std::tuple<vec3d, vec3d> battin1984(double mu, vec3d &r1, vec3d &r2, double tof,
     return ret;
 }
 
+double julianDateToSeconds(double julianDate)
+{
+    const double SECONDS_PER_DAY = 86400.0;
+    return (julianDate - 2451545.0) * SECONDS_PER_DAY;
+}
+
 extern "C"
 {
 #ifdef EMSCRIPTEN
@@ -254,5 +260,93 @@ void battin1984_wrapper(double mu, const double r1[3], const double r2[3], doubl
     result[3] = v2[0];
     result[4] = v2[1];
     result[5] = v2[2];
+}
+
+#ifdef EMSCRPTEN
+EMSCRIPTEN_KEEPALIVE
+#endif
+void computePorkchopPlot(
+        double mu,
+        const double *r1,
+        const double *v1,
+        const double *r2,
+        const double *v2,
+        const double *d1,
+        const double *d2,
+        int num_departure_dates,
+        int num_arrival_dates,
+        double *result_dv1,
+        double *result_dv2,
+        double *result_total_dv
+)
+{
+    bool prograde = true;
+
+    for (int i = 0; i < num_departure_dates; ++i)
+    {
+        double departure_time = julianDateToSeconds(d1[i]);
+        vec3d r1_departure = {r1[i * 3], r1[i * 3 + 1], r1[i * 3 + 2]};
+        vec3d v1_departure = {v1[i * 3], v1[i * 3 + 1], v1[i * 3 + 2]};
+
+        for (int j = 0; j < num_arrival_dates; ++j)
+        {
+            double arrival_time = julianDateToSeconds(d2[j]);
+            vec3d r2_arrival = {r1[i * 3], r1[i * 3 + 1], r1[i * 3 + 2]};
+            vec3d v2_arrival = {v1[i * 3], v1[i * 3 + 1], v1[i * 3 + 2]};
+
+            int index = i * num_arrival_dates + j;
+
+            result_dv1[index] = -1.0;
+            result_dv2[index] = -1.0;
+            result_total_dv[index] = -1.0;
+
+            if (arrival_time < departure_time)
+                continue;
+
+            double tof = arrival_time - departure_time;
+
+            if (tof < 86400.0)
+                continue;
+
+            auto [v1_transfer, v2_transfer] =
+                    battin1984(mu, r1_departure, r2_arrival, tof);
+
+            double dv1 = (v1_transfer - v1_departure).norm();
+            double dv2 = (v2_transfer - v2_arrival).norm();
+
+            double total_dv = dv1 + dv2;
+
+            result_dv1[index] = dv1;
+            result_dv2[index] = dv2;
+            result_total_dv[index] = total_dv;
+        }
+    }
+}
+
+#ifdef EMSCRIPTEN
+EMSCRIPTEN_KEEPALIVE
+#endif
+void computePorkchopPlotSimple(
+        double mu,
+        const double *r1,
+        const double *v1,
+        const double *r2,
+        const double *v2,
+        const double *d1,
+        const double *d2,
+        int num_departure_dates,
+        int num_arrival_dates,
+        double *result
+)
+{
+    double *dv1 = new double[num_departure_dates * num_arrival_dates];
+    double *dv2 = new double[num_departure_dates * num_arrival_dates];
+
+    computePorkchopPlot(mu, r1, v1, r2, v2, d1, d2,
+                        num_departure_dates, num_arrival_dates,
+                        dv1, dv2, result);
+
+    delete[] dv1;
+    delete[] dv2;
 }
 }
