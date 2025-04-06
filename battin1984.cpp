@@ -291,8 +291,8 @@ void computePorkchopPlot(
         for (int j = 0; j < num_arrival_dates; ++j)
         {
             double arrival_time = julianDateToSeconds(d2[j]);
-            vec3d r2_arrival = {r1[i * 3], r1[i * 3 + 1], r1[i * 3 + 2]};
-            vec3d v2_arrival = {v1[i * 3], v1[i * 3 + 1], v1[i * 3 + 2]};
+            vec3d r2_arrival = {r2[i * 3], r2[i * 3 + 1], r2[i * 3 + 2]};
+            vec3d v2_arrival = {v2[i * 3], v2[i * 3 + 1], v2[i * 3 + 2]};
 
             int index = i * num_arrival_dates + j;
 
