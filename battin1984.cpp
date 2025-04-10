@@ -2,6 +2,12 @@
 #include "battin1984.h"
 #include <iostream>
 
+#ifdef EMSCRIPTEN
+
+#include <wasm_simd128.h>
+
+#endif
+
 double getTransferAngle(vec3d &r1, vec3d &r2, bool prograde, bool shortPath)
 {
     vec3d cross = r1.cross(r2);
@@ -235,6 +241,25 @@ double julianDateToSeconds(double julianDate)
     return (julianDate - 2451545.0) * SECONDS_PER_DAY;
 }
 
+#ifdef EMSCRIPTEN
+
+v128_t julianDateToSeconds_simd(v128_t julianDates)
+{
+    const double JULIAN_EPOCH = 2451545.0;
+    const double SECONDS_PER_DAY = 86400.0;
+
+    v128_t epoch = wasm_f64x2_splat(JULIAN_EPOCH);
+    v128_t secondsPerDay = wasm_f64x2_splat(SECONDS_PER_DAY);
+
+    // (julianDates - epoch) * secondsPerDay
+    v128_t delta = wasm_f64x2_sub(julianDates, epoch);
+    v128_t result = wasm_f64x2_mul(delta, secondsPerDay);
+
+    return result;
+}
+
+#endif
+
 extern "C"
 {
 #ifdef EMSCRIPTEN
@@ -322,7 +347,7 @@ void computePorkchopPlot(
                 double best_dv1 = MAX_DV_CUTOFF;
                 double best_c3 = MAX_C3_CUTOFF;
 
-                for (bool shortPath : {true, false})
+                for (bool shortPath: {true, false})
                 {
                     auto [v1_transfer, v2_transfer] =
                             battin1984(mu, r1_departure, r2_arrival, tof, prograde, shortPath);
@@ -364,6 +389,233 @@ void computePorkchopPlot(
     }
 }
 
+#ifdef EMSCRPTEN
+EMSCRIPTEN_KEEPALIVE
+#endif
+void computePorkchopPlot_SIMD(
+        double mu,
+        const double *r1,
+        const double *v1,
+        const double *r2,
+        const double *v2,
+        const double *d1,
+        const double *d2,
+        int num_departure_dates,
+        int num_arrival_dates,
+        double departure_planet_mu,
+        double arrival_planet_mu,
+        double departure_orbit_radius,
+        double arrival_orbit_radius,
+        double *result_c3,
+        double *result_dv1,
+        double *result_total_dv
+)
+{
+    bool prograde = true;
+
+    const v128_t v_max_c3_cutoff = wasm_f64x2_splat(MAX_DV_CUTOFF);
+    const v128_t v_max_dv_cutoff = wasm_f64x2_splat(MAX_DV_CUTOFF);
+    const v128_t v_min_tof = wasm_f64x2_splat(MIN_TOF);
+    const v128_t v_zero = wasm_f64x2_splat(0.0);
+    const v128_t v_two = wasm_f64x2_splat(2.0);
+    const v128_t v_inf = wasm_f64x2_splat(std::numeric_limits<double>::infinity());
+
+    const double v_orbit_dep_sq = departure_planet_mu / departure_orbit_radius;
+    const double v_orbit_arr_sq = arrival_planet_mu / arrival_orbit_radius;
+    const double v_orbit_dep = std::sqrt(v_orbit_dep_sq);
+    const double v_orbit_arr = std::sqrt(v_orbit_arr_sq);
+
+    const v128_t v_v_orbit_dep_sq = wasm_f64x2_splat(v_orbit_dep_sq);
+    const v128_t v_v_orbit_arr_sq = wasm_f64x2_splat(v_orbit_arr_sq);
+    const v128_t v_v_orbit_dep = wasm_f64x2_splat(v_orbit_dep);
+    const v128_t v_v_orbit_arr = wasm_f64x2_splat(v_orbit_arr);
+
+    for (int i = 0; i < num_departure_dates; ++i)
+    {
+        double departure_jd = d1[i];
+        double departure_time = julianDateToSeconds(departure_jd);
+        vec3d r1_departure = {r1[i * 3], r1[i * 3 + 1], r1[i * 3 + 2]};
+        vec3d v1_departure = {v1[i * 3], v1[i * 3 + 1], v1[i * 3 + 2]};
+
+        v128_t departure_time_v = wasm_f64x2_splat(departure_time);
+
+        int j = 0;
+        for (; j < num_arrival_dates - 1; j += 2)
+        {
+            int index0 = i * num_arrival_dates + j;
+            int index1 = index0 + 1;
+
+            v128_t arrival_jd_v = wasm_v128_load(&d2[j]);
+            v128_t arrival_time_v = julianDateToSeconds_simd(arrival_jd_v);
+
+            v128_t tof_v = wasm_f64x2_sub(arrival_time_v, departure_time_v);
+
+            //-------------------------------------------------------------------------------
+            v128_t le_mask = wasm_f64x2_le(arrival_time_v, departure_time_v);
+            v128_t lt_mask = wasm_f64x2_lt(tof_v, v_min_tof);
+
+            v128_t invalid_mask = wasm_v128_or(le_mask, lt_mask);
+            //Invalid date bit mask
+
+            double results[2][3]; //C3, dv1, total_dv (j, j+1)
+            bool possible[2] = {true, true};
+
+            for (int k = 0; k < 2; ++k)
+            {
+                int current_j = j + k;
+                int current_index = i * num_arrival_dates + current_j;
+                double arrival_time = (k == 0)
+                                      ? wasm_f64x2_extract_lane(arrival_time_v, 0)
+                                      : wasm_f64x2_extract_lane(arrival_time_v, 1);
+                double tof = (k == 0)
+                             ? wasm_f64x2_extract_lane(tof_v, 0)
+                             : wasm_f64x2_extract_lane(tof_v, 1);
+
+                if (arrival_time <= departure_time || tof < MIN_TOF)
+                {
+                    results[k][0] = MAX_C3_CUTOFF;
+                    results[k][1] = MAX_DV_CUTOFF;
+                    results[k][2] = MAX_DV_CUTOFF;
+                    possible[k] = false;
+                    continue;
+                }
+
+                vec3d r2_arrival = {r2[current_j * 3 + 0], r2[current_j * 3 + 1], r2[current_j * 3 + 2]};
+                vec3d v2_arrival = {v2[current_j * 3 + 0], v2[current_j * 3 + 1], v2[current_j * 3 + 2]};
+
+                try
+                {
+                    double best_total_dv = MAX_DV_CUTOFF;
+                    double best_dv1 = MAX_DV_CUTOFF;
+                    double best_c3 = MAX_C3_CUTOFF;
+
+                    for (bool shortPath: {true, false})
+                    {
+                        auto [v1_transfer, v2_transfer] =
+                                battin1984(mu, r1_departure, r2_arrival, tof, prograde, shortPath);
+
+                        vec3d v_inf_departure = v1_transfer - v1_departure;
+                        vec3d v_inf_arrival = v2_arrival - v2_transfer;
+
+                        double c3_departure_sq = v_inf_departure.x() * v_inf_departure.x() +
+                                                 v_inf_departure.y() * v_inf_departure.y() +
+                                                 v_inf_departure.z() * v_inf_departure.z();
+                        double c3_clamped = std::min(c3_departure_sq, MAX_C3_CUTOFF);
+
+                        double dv1 = std::sqrt(2.0 * v_orbit_dep_sq + c3_clamped) - v_orbit_dep;
+
+                        double c3_arrival_sq = v_inf_arrival.x() * v_inf_arrival.x() +
+                                               v_inf_arrival.y() * v_inf_arrival.y() +
+                                               v_inf_arrival.z() * v_inf_arrival.z();
+
+                        double dv2 = std::sqrt(2.0 * v_orbit_arr_sq + c3_arrival_sq) - v_orbit_arr;
+
+                        double total_dv = dv1 + dv2;
+
+                        if (total_dv < best_total_dv)
+                        {
+                            best_total_dv = total_dv;
+                            best_dv1 = dv1;
+                            best_c3 = c3_clamped;
+                        }
+                    }
+
+                    results[k][0] = std::min(best_c3, MAX_C3_CUTOFF);
+                    results[k][1] = std::min(best_dv1, MAX_DV_CUTOFF);
+                    results[k][2] = std::min(best_total_dv, MAX_DV_CUTOFF);
+                }
+                catch (...)
+                {
+                    results[k][0] = MAX_C3_CUTOFF;
+                    results[k][1] = MAX_DV_CUTOFF;
+                    results[k][2] = MAX_DV_CUTOFF;
+                    possible[k] = false;
+                }
+            }
+
+            v128_t result_c3_v = wasm_f64x2_make(results[0][0], results[1][0]);
+            v128_t result_dv1_v = wasm_f64x2_make(results[0][1], results[1][1]);
+            v128_t result_total_dv_v = wasm_f64x2_make(results[0][2], results[1][2]);
+
+            v128_t final_c3_v = wasm_v128_bitselect(v_max_c3_cutoff, result_c3_v, invalid_mask);
+            v128_t final_dv1_v = wasm_v128_bitselect(v_max_dv_cutoff, result_dv1_v, invalid_mask);
+            v128_t final_total_dv_v = wasm_v128_bitselect(v_max_dv_cutoff, result_total_dv_v, invalid_mask);
+
+            wasm_v128_store(&result_c3[index0], final_c3_v);
+            wasm_v128_store(&result_dv1[index0], final_dv1_v);
+            wasm_v128_store(&result_total_dv[index0], final_total_dv_v);
+        }
+
+        if (j < num_arrival_dates)
+        {
+            int index = i * num_arrival_dates + j;
+
+            result_c3[index] = MAX_C3_CUTOFF;
+            result_dv1[index] = MAX_DV_CUTOFF;
+            result_total_dv[index] = MAX_DV_CUTOFF;
+
+            double arrival_jd = d2[j];
+            double arrival_time_sec = julianDateToSeconds(arrival_jd);
+            double tof = arrival_time_sec - departure_time;
+
+            if (arrival_time_sec <= departure_time || tof < MIN_TOF)
+            {
+                continue;
+            }
+
+            vec3d r2_arrival = {r2[j * 3 + 0], r2[j * 3 + 1], r2[j * 3 + 2]};
+            vec3d v2_arrival = {v2[j * 3 + 0], v2[j * 3 + 1], v2[j * 3 + 2]};
+
+            try
+            {
+                double best_total_dv = std::numeric_limits<double>::infinity();
+                double best_dv1 = MAX_DV_CUTOFF;
+                double best_c3 = MAX_C3_CUTOFF;
+
+                for (bool shortPath: {true, false})
+                {
+                    auto [v1_transfer, v2_transfer] =
+                            battin1984(mu, r1_departure, r2_arrival, tof, prograde, shortPath);
+
+                    vec3d v_inf_departure = v1_transfer - v1_departure;
+                    vec3d v_inf_arrival = v2_arrival - v2_transfer;
+
+                    double c3_departure_sq = v_inf_departure.x() * v_inf_departure.x() +
+                                             v_inf_departure.y() * v_inf_departure.y() +
+                                             v_inf_departure.z() * v_inf_departure.z();
+                    double c3_clamped = std::min(c3_departure_sq, MAX_C3_CUTOFF);
+
+                    double dv1 = std::sqrt(2.0 * v_orbit_dep_sq + c3_clamped) - v_orbit_dep;
+
+                    double c3_arrival_sq = v_inf_arrival.x() * v_inf_arrival.x() +
+                                           v_inf_arrival.y() * v_inf_arrival.y() +
+                                           v_inf_arrival.z() * v_inf_arrival.z();
+                    double dv2 = std::sqrt(2.0 * v_orbit_arr_sq + c3_arrival_sq) - v_orbit_arr;
+
+                    double total_dv = dv1 + dv2;
+
+                    if (total_dv < best_total_dv)
+                    {
+                        best_total_dv = total_dv;
+                        best_dv1 = dv1;
+                        best_c3 = c3_clamped;
+                    }
+                }
+
+                result_c3[index] = std::min(best_c3, MAX_C3_CUTOFF);
+                result_dv1[index] = std::min(best_dv1, MAX_DV_CUTOFF);
+                result_total_dv[index] = std::min(best_total_dv, MAX_DV_CUTOFF);
+
+            } catch (...)
+            {
+                result_c3[index] = MAX_C3_CUTOFF;
+                result_dv1[index] = MAX_DV_CUTOFF;
+                result_total_dv[index] = MAX_DV_CUTOFF;
+            }
+        }
+    }
+}
+
 #ifdef EMSCRIPTEN
 EMSCRIPTEN_KEEPALIVE
 #endif
@@ -388,7 +640,7 @@ void computePorkchopPlotSimple(
 {
     auto start = std::chrono::high_resolution_clock::now();
 
-    computePorkchopPlot(mu, r1, v1, r2, v2, d1, d2,
+    computePorkchopPlot_SIMD(mu, r1, v1, r2, v2, d1, d2,
                         num_departure_dates, num_arrival_dates, departure_planet_mu, arrival_planet_mu,
                         departure_orbit_radius, arrival_orbit_radius, result_c3, result_dv1, result_total_dv);
 
