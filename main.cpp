@@ -9,7 +9,8 @@ int main()
 
     double tof = 60.0 * 60.0 * 10.0;
 
-    auto [v1, v2] = battin1984(mu_sun, r1, r2, tof);
+    auto [v1, v2] =
+            battin1984(mu_sun, r1, r2, tof, true, true);
 
     std::cout << "Velocity Vector 1: " << v1.transpose() << "\n";
     std::cout << "Velocity Vector 2: " << v2.transpose() << std::endl;

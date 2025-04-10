@@ -176,9 +176,8 @@ double battinSecondEq(double u, double h1, double h2)
     return y;
 }
 
-
 std::tuple<vec3d, vec3d> battin1984(double mu, vec3d &r1, vec3d &r2, double tof,
-                                    bool prograde, int maxIter, double atol, int nRev, bool shortPath)
+                                    bool prograde, bool shortPath, int maxIter, double atol, int nRev)
 {
     double r1_norm = r1.norm();
     double r2_norm = r2.norm();
@@ -275,8 +274,12 @@ void computePorkchopPlot(
         const double *d2,
         int num_departure_dates,
         int num_arrival_dates,
+        double departure_planet_mu,
+        double arrival_planet_mu,
+        double departure_orbit_radius,
+        double arrival_orbit_radius,
+        double *result_c3,
         double *result_dv1,
-        double *result_dv2,
         double *result_total_dv
 )
 {
@@ -291,34 +294,72 @@ void computePorkchopPlot(
         for (int j = 0; j < num_arrival_dates; ++j)
         {
             double arrival_time = julianDateToSeconds(d2[j]);
-            vec3d r2_arrival = {r2[i * 3], r2[i * 3 + 1], r2[i * 3 + 2]};
-            vec3d v2_arrival = {v2[i * 3], v2[i * 3 + 1], v2[i * 3 + 2]};
+            vec3d r2_arrival = {r2[j * 3], r2[j * 3 + 1], r2[j * 3 + 2]};
+            vec3d v2_arrival = {v2[j * 3], v2[j * 3 + 1], v2[j * 3 + 2]};
 
             int index = i * num_arrival_dates + j;
 
-            result_dv1[index] = -1.0;
-            result_dv2[index] = -1.0;
-            result_total_dv[index] = -1.0;
-
-            if (arrival_time < departure_time)
-                continue;
+            result_c3[index] = INVALID_MARKER;
+            result_dv1[index] = INVALID_MARKER;
+            result_total_dv[index] = INVALID_MARKER;
 
             double tof = arrival_time - departure_time;
+
+            if (arrival_time <= departure_time || tof < MIN_TOF)
+            {
+                result_c3[index] = MAX_C3_CUTOFF;
+                result_dv1[index] = MAX_DV_CUTOFF;
+                result_total_dv[index] = MAX_DV_CUTOFF;
+                continue;
+            }
 
             if (tof < 86400.0)
                 continue;
 
-            auto [v1_transfer, v2_transfer] =
-                    battin1984(mu, r1_departure, r2_arrival, tof);
+            try
+            {
+                double best_total_dv = std::numeric_limits<double>::infinity();
+                double best_dv1 = MAX_DV_CUTOFF;
+                double best_c3 = MAX_C3_CUTOFF;
 
-            double dv1 = (v1_transfer - v1_departure).norm();
-            double dv2 = (v2_transfer - v2_arrival).norm();
+                for (bool shortPath : {true, false})
+                {
+                    auto [v1_transfer, v2_transfer] =
+                            battin1984(mu, r1_departure, r2_arrival, tof, prograde, shortPath);
 
-            double total_dv = dv1 + dv2;
+                    vec3d v_inf_departure = v1_transfer - v1_departure;
+                    vec3d v_inf_arrival = v2_arrival - v2_transfer;
 
-            result_dv1[index] = dv1;
-            result_dv2[index] = dv2;
-            result_total_dv[index] = total_dv;
+                    double c3_departure = std::pow(v_inf_departure.norm(), 2);
+                    double c3_clamped = std::min(c3_departure, MAX_C3_CUTOFF);
+
+                    double v_orbit_dep = std::sqrt(departure_planet_mu / departure_orbit_radius);
+                    double dv1 = std::sqrt(2 * v_orbit_dep * v_orbit_dep + c3_clamped) - v_orbit_dep;
+
+                    double c3_arrival = std::pow(v_inf_arrival.norm(), 2);
+                    double v_orbit_arr = std::sqrt(arrival_planet_mu / arrival_orbit_radius);
+                    double dv2 = std::sqrt(2 * v_orbit_arr * v_orbit_arr + c3_arrival) - v_orbit_arr;
+
+                    double total_dv = dv1 + dv2;
+
+                    if (total_dv < best_total_dv)
+                    {
+                        best_total_dv = total_dv;
+                        best_dv1 = dv1;
+                        best_c3 = c3_clamped;
+                    }
+                }
+
+                result_c3[index] = std::min(best_c3, MAX_C3_CUTOFF);
+                result_dv1[index] = std::min(best_dv1, MAX_DV_CUTOFF);
+                result_total_dv[index] = std::min(best_total_dv, MAX_DV_CUTOFF);
+            }
+            catch (...)
+            {
+                result_c3[index] = MAX_C3_CUTOFF;
+                result_dv1[index] = MAX_DV_CUTOFF;
+                result_total_dv[index] = MAX_DV_CUTOFF;
+            }
         }
     }
 }
@@ -336,17 +377,24 @@ void computePorkchopPlotSimple(
         const double *d2,
         int num_departure_dates,
         int num_arrival_dates,
-        double *result
+        double departure_planet_mu,
+        double arrival_planet_mu,
+        double departure_orbit_radius,
+        double arrival_orbit_radius,
+        double *result_c3,
+        double *result_dv1,
+        double *result_total_dv
 )
 {
-    double *dv1 = new double[num_departure_dates * num_arrival_dates];
-    double *dv2 = new double[num_departure_dates * num_arrival_dates];
+    auto start = std::chrono::high_resolution_clock::now();
 
     computePorkchopPlot(mu, r1, v1, r2, v2, d1, d2,
-                        num_departure_dates, num_arrival_dates,
-                        dv1, dv2, result);
+                        num_departure_dates, num_arrival_dates, departure_planet_mu, arrival_planet_mu,
+                        departure_orbit_radius, arrival_orbit_radius, result_c3, result_dv1, result_total_dv);
 
-    delete[] dv1;
-    delete[] dv2;
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> duration = end - start;
+
+    std::cout << "Execution time: " << duration.count() << " milliseconds" << std::endl;
 }
 }
