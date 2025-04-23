@@ -47,7 +47,7 @@ jobs:
       - name: Move Build Artifacts
         run: |
           mkdir -p public/porkchop
-          mv src/cpp/battin1984_exec.* public/porkchop/
+          mv build/battin1984_exec.* public/porkchop/
 
       - name: Docker login
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
