@@ -1,0 +1,58 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-wasm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake git curl python3
+
+      - name: Setup Emscripten SDK
+        run: |
+          git clone https://github.com/emscripten-core/emsdk.git
+          cd emsdk
+          ./emsdk install latest
+          ./emsdk activate latest
+          source ./emsdk_env.sh
+          echo "source $(pwd)/emsdk_env.sh" >> $GITHUB_ENV
+
+      - name: Download Eigen to external/
+        run: |
+          mkdir -p external
+          curl -L -o eigen.tar.gz https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz
+          tar -xzf eigen.tar.gz -C external --strip-components=1
+          rm eigen.tar.gz
+
+      - name: Build C++ to WebAssembly
+        run: |
+          source emsdk/emsdk_env.sh
+          mkdir -p build
+          emcc src/cpp/main.cpp \
+            -Iexternal \
+            -o src/cpp/battin1984_exec.js
+
+      - name: Move Build Artifacts
+        run: |
+          mkdir -p public/porkchop
+          mv src/cpp/battin1984_exec.* public/porkchop/
+
+      - name: Docker login
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Docker build and push
+        run: |
+          IMAGE_NAME=${{ secrets.DOCKER_USERNAME }}/lambert
+          TAG=latest
+          docker build -t $IMAGE_NAME:$TAG .
+          docker push $IMAGE_NAME:$TAG
