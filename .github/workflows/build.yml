@@ -18,6 +18,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake git curl python3
 
+      - name: Download Eigen to external/
+        run: |
+          mkdir -p external
+          curl -L -o eigen.tar.gz https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz
+          tar -xzf eigen.tar.gz -C external --strip-components=1
+          rm eigen.tar.gz
+
       - name: Setup Emscripten SDK
         run: |
           git clone https://github.com/emscripten-core/emsdk.git
@@ -27,25 +34,17 @@ jobs:
            echo "EMSDK=$(pwd)" >> $GITHUB_ENV
           ./emsdk_env.sh > em_vars.sh
 
-      - name: Export Emscripten Env Variables
+      - name: Load Emscripten Environment
         run: |
-          source ./emsdk/em_vars.sh
-          echo "PATH=$PATH" >> $GITHUB_ENV
-          echo "EMSDK_NODE=$(which node)" >> $GITHUB_ENV
+          source ./emsdk/emsdk_env.sh
 
-      - name: Download Eigen to external/
+      - name: Configure and Build with CMake
         run: |
-          mkdir -p external
-          curl -L -o eigen.tar.gz https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz
-          tar -xzf eigen.tar.gz -C external --strip-components=1
-          rm eigen.tar.gz
-
-      - name: Build WebAssembly
-        run: |
-          source ./emsdk/em_vars.sh
-          emcc src/cpp/main.cpp \
-            -Iexternal \
-            -o src/cpp/battin1984_exec.js
+          source ./emsdk/emsdk_env.sh
+          mkdir -p build
+          cd build
+          emcmake cmake ..
+          emmake make
 
       - name: Move Build Artifacts
         run: |
