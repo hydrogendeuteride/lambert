@@ -31,12 +31,9 @@ jobs:
           cd emsdk
           ./emsdk install latest
           ./emsdk activate latest
+          chmod +x emsdk_env.sh
            echo "EMSDK=$(pwd)" >> $GITHUB_ENV
           ./emsdk_env.sh > em_vars.sh
-
-      - name: Load Emscripten Environment
-        run: |
-          source ./emsdk/emsdk_env.sh
 
       - name: Configure and Build with CMake
         run: |
