@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Porkchop Plot Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <script src="https://cdn.plot.ly/plotly-3.0.1.min.js" charset="utf-8"></script>
+    <link rel="stylesheet" href="porkchop/plot_calc.css">
+    <style>
+        :root {
+            --background-color: #ffffff;
+            --text-color: #212529;
+            --card-bg: #ffffff;
+            --card-border: rgba(0, 0, 0, 0.125);
+            --input-bg: #ffffff;
+            --input-border: #ced4da;
+            --muted-text: #6c757d;
+            --plot-bg: #ffffff;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --background-color: #0a0a0a;
+                --text-color: #e0e0e0;
+                --card-bg: #1e1e1e;
+                --card-border: rgba(255, 255, 255, 0.125);
+                --input-bg: #2d2d2d;
+                --input-border: #444444;
+                --muted-text: #adb5bd;
+                --plot-bg: #1e1e1e;
+                --section-title-color: #ffffff;
+                --section-border-color: #444444;
+            }
+
+            body {
+                background-color: var(--background-color);
+                color: var(--text-color);
+            }
+
+            .section-title {
+                color: var(--section-title-color);
+                border-bottom: 1px solid var(--section-border-color);
+                padding-bottom: 0.5rem;
+                margin-bottom: 1rem;
+            }
+
+            .card {
+                background-color: var(--card-bg);
+                border-color: var(--card-border);
+                color: var(--text-color);
+            }
+
+            .form-control,
+            .form-select {
+                background-color: var(--input-bg);
+                border-color: var(--input-border);
+                color: var(--text-color);
+            }
+
+            .form-text.text-muted {
+                color: var(--muted-text) !important;
+            }
+
+            .alert-info {
+                background-color: rgba(13, 202, 240, 0.15);
+                border-color: rgba(13, 202, 240, 0.3);
+                color: #0dcaf0;
+            }
+
+            .alert-success {
+                background-color: rgba(25, 135, 84, 0.15);
+                border-color: rgba(25, 135, 84, 0.3);
+                color: #75b798;
+            }
+
+            .alert-danger {
+                background-color: rgba(220, 53, 69, 0.15);
+                border-color: rgba(220, 53, 69, 0.3);
+                color: #ea868f;
+            }
+
+            .card-header.bg-info {
+                background-color: #055160 !important;
+            }
+
+            .card-header.bg-primary {
+                background-color: #0a58ca !important;
+            }
+
+            .card-header.bg-success {
+                background-color: #146c43 !important;
+            }
+
+            #porkchopPlotContainer {
+                background-color: var(--plot-bg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0">Porkchop Plot Generator</h1>
+        </div>
+
+        <div class="form-section">
+            <h3 class="section-title"><i class="bi bi-gear"></i> Basic Settings</h3>
+            <div class="card mb-3">
+                <div class="card-header bg-info text-white">
+                    <i class="bi bi-sun"></i> Center Body
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="centralBodySelect" class="form-label">Center Body</label>
+                        <select id="centralBodySelect" class="form-select">
+
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <input type="number" id="mu" class="form-control" style="display: none;" value="132712440018"
+                            readonly>
+                    </div>
+                    <div id="mainBodyAlert"></div>
+                </div>
+            </div>
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <i class="bi bi-rocket-takeoff"></i> Departure Body
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="departureBodySelect" class="form-label">Departure Body</label>
+                                <select id="departureBodySelect" class="form-select">
+                                    <!--  -->
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="departureAltitude" class="form-label">Orbit Height (km)</label>
+                                <input type="number" id="departureAltitude" class="form-control" value="400">
+                            </div>
+
+                            <input type="text" id="departureBodyID" class="form-control" style="display: none" readonly>
+                            <input type="number" id="departureBodyMu" class="form-control" style="display: none"
+                                readonly>
+                            <input type="number" id="departureOrbitRadius" class="form-control" style="display: none"
+                                readonly>
+                            <div id="depBodyAlert"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <i class="bi bi-rocket"></i> Arrival Body
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="arrivalBodySelect" class="form-label">Arrival Body</label>
+                                <select id="arrivalBodySelect" class="form-select">
+                                    <!--  -->
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="arrivalAltitude" class="form-label">Orbit Height (km)</label>
+                                <input type="number" id="arrivalAltitude" class="form-control" value="0">
+                            </div>
+                            <input type="text" id="arrivalBodyID" class="form-control" style="display: none" readonly>
+                            <input type="number" id="arrivalBodyMu" class="form-control" style="display: none" readonly>
+                            <input type="number" id="arrivalOrbitRadius" class="form-control" style="display: none"
+                                readonly>
+                            <div id="arrBodyAlert"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3 class="section-title"><i class="bi bi-calendar-date"></i> Transfer Duration Settings</h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <i class="bi bi-calendar-check"></i> Departure Date Range
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col">
+                                    <label for="departureStartDate" class="form-label">Start Date</label>
+                                    <input type="date" id="departureStartDate" class="form-control" value="2017-09-12">
+                                </div>
+                                <div class="col">
+                                    <label for="departureEndDate" class="form-label">End Date</label>
+                                    <input type="date" id="departureEndDate" class="form-control" value="2018-10-17">
+                                </div>
+                                <div id="departureDateAlert"></div>
+                            </div>
+                            <div class="mb-2">
+                                <label for="departureStepSize" class="form-label">Date Interval</label>
+                                <select id="departureStepSize" class="form-select">
+                                    <option value="1d">1 day</option>
+                                    <option value="2d">2 days</option>
+                                    <option value="5d">5 days</option>
+                                    <option value="10d">10 days</option>
+                                    <option value="auto" selected>Auto (based on range)</option>
+                                </select>
+                                <small class="form-text text-muted">Select interval or Auto for smart
+                                    calculation</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <i class="bi bi-calendar-check"></i> Arrival Date Range
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col">
+                                    <label for="arrivalStartDate" class="form-label">Start Date</label>
+                                    <input type="date" id="arrivalStartDate" class="form-control" value="2018-08-28">
+                                </div>
+                                <div class="col">
+                                    <label for="arrivalEndDate" class="form-label">End Date</label>
+                                    <input type="date" id="arrivalEndDate" class="form-control" value="2020-01-10">
+                                </div>
+                                <div id="arrivalDateAlert"></div>
+                            </div>
+                            <div class="mb-2">
+                                <label for="arrivalStepSize" class="form-label">Date Interval</label>
+                                <select id="arrivalStepSize" class="form-select">
+                                    <option value="1d">1 day</option>
+                                    <option value="2d">2 days</option>
+                                    <option value="5d">5 days</option>
+                                    <option value="10d">10 days</option>
+                                    <option value="auto" selected>Auto (based on range)</option>
+                                </select>
+                                <small class="form-text text-muted">Select interval or Auto for smart
+                                    calculation</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+            <button id="generateButton" class="btn btn-primary btn-lg" disabled>
+                <i class="bi bi-graph-up"></i> Generate Porkchop Plot
+            </button>
+        </div>
+    </div>
+
+    <div class="result-section container px-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="mb-0"><i class="bi bi-bar-chart"></i> Result</h3>
+            <span id="status-badge" class="badge bg-secondary">Loading...</span>
+        </div>
+
+        <div id="result" class="alert alert-info">
+            <div class="d-flex align-items-center">
+                <div class="spinner-border spinner-border-sm me-2" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <span>WASM module loading...</span>
+            </div>
+        </div>
+
+        <div class="plot-container">
+            <div id="porkchopPlotContainer" style="width:100%; height:600px;"></div>
+        </div>
+    </div>
+    </div>
+
+    <script type="module" src="porkchop/porkchop_main.js"></script>
+    <script type="module">
+        import createModule from './porkchop/battin1984_exec.js';
+
+        window.initWasm = function () {
+            createModule().then((Module) => {
+                window.wasmModule = Module;
+                document.getElementById('result').innerHTML =
+                    '<div class="alert alert-success">' +
+                    '<i class="bi bi-check-circle-fill me-2"></i> WASM Module Loaded</div>';
+                document.getElementById('generateButton').disabled = false;
+                document.getElementById('status-badge').className = "badge bg-success";
+                document.getElementById('status-badge').innerText = "Ready";
+            }).catch(error => {
+                console.error("WASM module load failed:", error);
+                document.getElementById('result').innerHTML =
+                    '<div class="alert alert-danger">' +
+                    '<i class="bi bi-exclamation-triangle-fill me-2"></i> Error: WASM Module loading failed: ' + error.message + '</div>';
+                document.getElementById('status-badge').className = "badge bg-danger";
+                document.getElementById('status-badge').innerText = "Error";
+            });
+        };
+
+        window.addEventListener('DOMContentLoaded', window.initWasm);
+    </script>
+</body>
+</body>
+
+</html>

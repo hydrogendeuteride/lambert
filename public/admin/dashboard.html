@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="../styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div id="header-placeholder"></div>
+    <div class="dashboard-layout">
+        <div id="sidebar-placeholder"></div>
+
+        <main class="content">
+            <div class="container">
+                <h2>Admin Dashboard</h2>
+                <section id="dashboard-overview" class="dashboard-section">
+                    <h3>Visitor Overview</h3>
+                    <div class="overview-cards">
+                        <div class="card">
+                            <h4>Today's Visitors</h4>
+                            <p id="visitors-today">-</p>
+                        </div>
+                        <div class="card">
+                            <h4>Total Visitors</h4>
+                            <p id="visitors-total">-</p>
+                        </div>
+                    </div>
+                    <canvas id="visitorsChart" width="600" height="300"></canvas>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="dashboard.js"></script>
+    <script src="header.js"></script>
+    <script src="sidebar.js"></script>
+</body>
+
+</html>

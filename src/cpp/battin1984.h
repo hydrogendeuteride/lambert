@@ -1,7 +1,7 @@
 #ifndef LAMBERT_BATTIN1984_H
 #define LAMBERT_BATTIN1984_H
 
-#include "external/eigen3/Eigen/Dense"
+#include "../../external/eigen3/Eigen/Dense"
 #include <tuple>
 #include <chrono>
 

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Usage Statistics</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <div id="header-placeholder"></div>
+    <div class="dashboard-layout">
+        <div id="sidebar-placeholder"></div>
+        <main class="content">
+            <div class="container">
+                <h2>Usage Statistics</h2>
+
+                <h3>Popular Routes</h3>
+                <table id="popularRoutesTable">
+                    <thead>
+                        <tr>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+
+                <h3>Top Users by Call Count</h3>
+                <table id="topUsersTable">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Total Calls</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script src="statistics.js"></script>
+    <script src="header.js"></script>
+    <script src="sidebar.js"></script>
+</body>
+</html>

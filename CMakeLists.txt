@@ -26,9 +26,9 @@ else()
     message(STATUS "Native build detected.")
 endif()
 
-add_library(battin1984 SHARED battin1984.cpp)
-add_executable(battin1984_exec battin1984.cpp)
-add_executable(main main.cpp)
+add_library(battin1984 SHARED src/cpp/battin1984.cpp)
+add_executable(battin1984_exec src/cpp/battin1984.cpp)
+add_executable(main src/cpp/main.cpp)
 
 target_link_libraries(main PUBLIC battin1984)
 
