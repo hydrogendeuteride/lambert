@@ -22,7 +22,8 @@ jobs:
         run: |
           mkdir -p external
           curl -L -o eigen.tar.gz https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz
-          tar -xzf eigen.tar.gz -C external --strip-components=1
+          tar -xzf eigen.tar.gz
+          mv eigen-3.4.0 external/eigen3
           rm eigen.tar.gz
 
       - name: Setup Emscripten SDK
