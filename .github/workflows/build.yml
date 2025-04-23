@@ -24,8 +24,14 @@ jobs:
           cd emsdk
           ./emsdk install latest
           ./emsdk activate latest
-          source ./emsdk_env.sh
-          echo "source $(pwd)/emsdk_env.sh" >> $GITHUB_ENV
+           echo "EMSDK=$(pwd)" >> $GITHUB_ENV
+          ./emsdk_env.sh > em_vars.sh
+
+      - name: Export Emscripten Env Variables
+        run: |
+          source ./emsdk/em_vars.sh
+          echo "PATH=$PATH" >> $GITHUB_ENV
+          echo "EMSDK_NODE=$(which node)" >> $GITHUB_ENV
 
       - name: Download Eigen to external/
         run: |
@@ -34,10 +40,9 @@ jobs:
           tar -xzf eigen.tar.gz -C external --strip-components=1
           rm eigen.tar.gz
 
-      - name: Build C++ to WebAssembly
+      - name: Build WebAssembly
         run: |
-          source emsdk/emsdk_env.sh
-          mkdir -p build
+          source ./emsdk/em_vars.sh
           emcc src/cpp/main.cpp \
             -Iexternal \
             -o src/cpp/battin1984_exec.js
