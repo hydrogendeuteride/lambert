@@ -3,6 +3,8 @@ project(lambert)
 
 set(CMAKE_CXX_STANDARD 17)
 
+include_directories(${CMAKE_SOURCE_DIR}/external/eigen3)
+
 if(EMSCRIPTEN)
     message(STATUS "Emscripten detected. Configuring for WebAssembly.")
     set(CMAKE_CXX_COMPILER_ID "Emscripten")
