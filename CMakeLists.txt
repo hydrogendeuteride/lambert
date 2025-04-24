@@ -5,28 +5,33 @@ set(CMAKE_CXX_STANDARD 17)
 
 include_directories(${CMAKE_SOURCE_DIR}/external/eigen3)
 
-if(EMSCRIPTEN)
-    message(STATUS "Emscripten detected. Configuring for WebAssembly.")
-    set(CMAKE_CXX_COMPILER_ID "Emscripten")
+if (EMSCRIPTEN)
+    message(STATUS "Emscripten: SINGLE_FILE + MODULARIZE + custom export name")
 
-    set(CMAKE_EXECUTABLE_SUFFIX ".html")
-    set(EXPORTED_FUNCTIONS "-s EXPORTED_FUNCTIONS='[\"_battin1984_wrapper\", \"_malloc\", \"_free\"]'")
-    set(EXPORTED_RUNTIME_METHODS "-s EXPORTED_RUNTIME_METHODS='[\"_malloc\", \"_free\", \"onRuntimeInitialized\"]'")
-    set(MODULARIZE_FLAG "-s MODULARIZE=1")
-    set(EXPORT_ES6_FLAG "-s EXPORT_ES6=1")
-    set(ENVIRONMENT_FLAG "-s ENVIRONMENT=web")
-    set(NO_ENTRY_FLAG "--no-entry")
+    set(CMAKE_EXECUTABLE_SUFFIX ".js")
 
-    set(SIMD_FLAG "-msimd128")
-    set(SIMD_EMSCRIPTEN_FLAG "-s WASM_BIGINT=1")
-    set(OPTIMIZATION_FLAGS "-O3")
+    set(EM_FLAGS
+            "-s MODULARIZE=1"
+            "-s EXPORT_ES6=1"
+            "-s EXPORT_NAME='createModule'"
+            "-s ENVIRONMENT='web'"
+            "--no-entry"
+            "-s SINGLE_FILE=1"
+            "-msimd128"
+            "-s WASM_BIGINT=1"
+            "-O3"
+            "-s EXPORTED_FUNCTIONS=['_battin1984_wrapper','_malloc','_free']"
+            "-s EXPORTED_RUNTIME_METHODS=['_malloc','_free','onRuntimeInitialized']"
+    )
 
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXPORTED_FUNCTIONS} ${EXPORTED_RUNTIME_METHODS} \
-        ${MODULARIZE_FLAG} ${EXPORT_ES6_FLAG} ${ENVIRONMENT_FLAG} ${NO_ENTRY_FLAG} \
-        ${SIMD_FLAG} ${SIMD_EMSCRIPTEN_FLAG} ${OPTIMIZATION_FLAGS}")
-else()
+    # 기존 CXX_FLAGS에 합침
+    string (REPLACE ";" " " EM_FLAGS_STR "${EM_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EM_FLAGS_STR}")
+
+    message(STATUS "CMAKE_CXX_FLAGS = ${CMAKE_CXX_FLAGS}")
+else ()
     message(STATUS "Native build detected.")
-endif()
+endif ()
 
 add_library(battin1984 SHARED src/cpp/battin1984.cpp)
 add_executable(battin1984_exec src/cpp/battin1984.cpp)

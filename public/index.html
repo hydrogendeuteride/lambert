@@ -287,26 +287,51 @@
     <script type="module">
         import createModule from './porkchop/battin1984_exec.js';
 
-        window.initWasm = function () {
-            createModule().then((Module) => {
-                window.wasmModule = Module;
-                document.getElementById('result').innerHTML =
-                    '<div class="alert alert-success">' +
-                    '<i class="bi bi-check-circle-fill me-2"></i> WASM Module Loaded</div>';
-                document.getElementById('generateButton').disabled = false;
-                document.getElementById('status-badge').className = "badge bg-success";
-                document.getElementById('status-badge').innerText = "Ready";
-            }).catch(error => {
-                console.error("WASM module load failed:", error);
-                document.getElementById('result').innerHTML =
-                    '<div class="alert alert-danger">' +
-                    '<i class="bi bi-exclamation-triangle-fill me-2"></i> Error: WASM Module loading failed: ' + error.message + '</div>';
-                document.getElementById('status-badge').className = "badge bg-danger";
-                document.getElementById('status-badge').innerText = "Error";
-            });
-        };
+        async function initWasm() {
+            try {
+                const Module = await createModule();
 
-        window.addEventListener('DOMContentLoaded', window.initWasm);
+                window.wasmModule = Module;
+
+                const resultEl = document.getElementById('result');
+                if (resultEl) {
+                    resultEl.innerHTML =
+                        '<div class="alert alert-success">' +
+                        '<i class="bi bi-check-circle-fill me-2"></i> WASM Module Loaded</div>';
+                }
+
+                const genBtn = document.getElementById('generateButton');
+                if (genBtn) genBtn.disabled = false;
+
+                const badge = document.getElementById('status-badge');
+                if (badge) {
+                    badge.className = 'badge bg-success';
+                    badge.textContent = 'Ready';
+                }
+
+                window.dispatchEvent(
+                    new CustomEvent('porkchop-wasm-ready', { detail: Module })
+                );
+            } catch (error) {
+                console.error('WASM module load failed:', error);
+
+                const resultEl = document.getElementById('result');
+                if (resultEl) {
+                    resultEl.innerHTML =
+                        '<div class="alert alert-danger">' +
+                        '<i class="bi bi-exclamation-triangle-fill me-2"></i> Error: ' +
+                        error.message + '</div>';
+                }
+
+                const badge = document.getElementById('status-badge');
+                if (badge) {
+                    badge.className = 'badge bg-danger';
+                    badge.textContent = 'Error';
+                }
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', initWasm);
     </script>
 </body>
 </body>
