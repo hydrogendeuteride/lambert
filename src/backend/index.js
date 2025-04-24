@@ -9,13 +9,16 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
+const fs =  require('fs');
+const https = require('https');
+
 require('module-alias/register');
 
 const horizonRoutes = require('./routes/horizonRoutes');
 const adminRoutes = require('./routes/admin');
 const adminStatsRoutes = require('./routes/adminStats');
 const visitorTracker = require('./routes/visitorTracker');
-const { verifyToken, authRole } = require('./middlewares/auth');
+const {verifyToken, authRole} = require('./middlewares/auth');
 const authRoutes = require('./routes/auth');
 
 const mongoURI = process.env.MONGO_URI;
@@ -37,10 +40,12 @@ mongoose.connect(mongoURI)
 
 const corsOptions = {
     origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : 'http://localhost:3000',
-    methods: ['GET', 'POST', 'PUT', 'DELETE','OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true
 };
 app.use(cors(corsOptions));
+
+app.options('*', cors(corsOptions));
 
 app.use((req, res, next) => {
     if (req.url.endsWith('.js')) {
@@ -92,7 +97,7 @@ app.use(
             }
         },
         crossOriginEmbedderPolicy: false,
-        crossOriginResourcePolicy: { policy: "cross-origin" },
+        crossOriginResourcePolicy: {policy: "cross-origin"},
     })
 );
 
@@ -109,6 +114,10 @@ app.use('/admin', verifyToken, authRole('admin'), adminStatsRoutes);
 
 app.use('/api/horizons', horizonRoutes);
 
-app.listen(port, () => {
-    console.log(`Server is running at http://localhost:${port}`);
-});
+const key = fs.readFileSync('./localhost+3-key.pem');
+const cert = fs.readFileSync('./localhost+3.pem');
+
+https.createServer({key, cert}, app)
+    .listen(3005, () => {
+        console.log('HTTPS 개발 서버 실행 중: https://localhost:3005');
+    });
