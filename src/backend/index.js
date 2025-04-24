@@ -47,14 +47,13 @@ app.use(cors(corsOptions));
 
 app.options('*', cors(corsOptions));
 
-app.use((req, res, next) => {
-    if (req.url.endsWith('.js')) {
-        res.type('application/javascript');
-    } else if (req.url.endsWith('.wasm')) {
-        res.type('application/wasm');
+app.use(express.static('public', {
+    setHeaders: (res, path) => {
+        if (path.endsWith('.wasm')) {
+            res.set('Content-Type', 'application/wasm');
+        }
     }
-    next();
-});
+}));
 
 app.use(express.json());
 
