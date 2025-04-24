@@ -114,10 +114,10 @@ app.use('/admin', verifyToken, authRole('admin'), adminStatsRoutes);
 
 app.use('/api/horizons', horizonRoutes);
 
-const key = fs.readFileSync('./localhost+3-key.pem');
-const cert = fs.readFileSync('./localhost+3.pem');
+const key = fs.readFileSync('/certs/localhost+1-key.pem');
+const cert = fs.readFileSync('/certs/localhost+1.pem');
 
 https.createServer({key, cert}, app)
     .listen(3005, () => {
-        console.log('HTTPS 개발 서버 실행 중: https://localhost:3005');
+        console.log('HTTPS Server running: https://localhost:3005');
     });
