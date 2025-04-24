@@ -21,10 +21,9 @@ if (EMSCRIPTEN)
             "-s WASM_BIGINT=1"
             "-O3"
             "-s EXPORTED_FUNCTIONS=['_battin1984_wrapper','_malloc','_free']"
-            "-s EXPORTED_RUNTIME_METHODS=['_malloc','_free','onRuntimeInitialized']"
+            "-s EXPORTED_RUNTIME_METHODS=['malloc','free','onRuntimeInitialized']"
     )
 
-    # 기존 CXX_FLAGS에 합침
     string (REPLACE ";" " " EM_FLAGS_STR "${EM_FLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EM_FLAGS_STR}")
 
