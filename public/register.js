@@ -15,7 +15,7 @@ document.getElementById('registerForm').addEventListener('submit', async functio
 
         const data = await response.json();
         if (response.ok) {
-            showSuccessMessage('Registeration success. Please Log in');
+            // showSuccessMessage('Registration success. Please Log in');
             setTimeout(() => {
                 window.location.href = '/login.html';
             }, 2000);

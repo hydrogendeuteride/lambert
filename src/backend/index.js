@@ -37,10 +37,19 @@ mongoose.connect(mongoURI)
 
 const corsOptions = {
     origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : 'http://localhost:3000',
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE','OPTIONS'],
     credentials: true
 };
 app.use(cors(corsOptions));
+
+app.use((req, res, next) => {
+    if (req.url.endsWith('.js')) {
+        res.type('application/javascript');
+    } else if (req.url.endsWith('.wasm')) {
+        res.type('application/wasm');
+    }
+    next();
+});
 
 app.use(express.json());
 
