@@ -1,7 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const logVisitorCall = require("../middlewares/logVisitorCall");
-const { query, validationResult } = require('express-validator');
+const {query, validationResult} = require('express-validator');
 
 const router = express.Router();
 
@@ -17,10 +17,10 @@ const validateCombinedRequest = [
 ];
 
 router.get('/combined', async (req, res) => {
-    const { depBody, arrBody, depStart, depEnd, arrStart, arrEnd, depStepSize, arrStepSize } = req.query;
+    const {depBody, arrBody, depStart, depEnd, arrStart, arrEnd, depStepSize, arrStepSize} = req.query;
 
     if (!depBody || !arrBody || !depStart || !depEnd || !arrStart || !arrEnd) {
-        return res.status(400).json({ error: "(depBody, arrBody, depStart, depEnd, arrStart, arrEnd)" });
+        return res.status(400).json({error: "(depBody, arrBody, depStart, depEnd, arrStart, arrEnd)"});
     }
 
     try {
@@ -42,11 +42,11 @@ router.get('/combined', async (req, res) => {
         });
 
         res.json({
-            departure: { body: depBody, data: parsedDep },
-            arrival: { body: arrBody, data: parsedArr }
+            departure: {body: depBody, data: parsedDep},
+            arrival: {body: arrBody, data: parsedArr}
         });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch Horizons data'});
+        res.status(500).json({error: 'Failed to fetch Horizons data'});
     }
 });
 
@@ -73,7 +73,19 @@ const getHorizonsData = async (bodyName, start, stop, stepSize = '1d') => {
             throw new Error('Invalid response from JPL Horizons');
         }
     } catch (error) {
-        console.error('Error fetching Horizons data:', error.withMessage);
+        if (axios.isAxiosError(error)) {
+            console.error(
+                'Axios error fetching Horizons data:',
+                {
+                    code: error.code,
+                    status: error.response?.status,
+                    data: error.response?.data,
+                    message: error.message
+                }
+            );
+        } else {
+            console.error('Unexpected error:', error);
+        }
         throw error;
     }
 };
