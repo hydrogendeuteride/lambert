@@ -56,7 +56,6 @@ app.use(session({
     }
 }));
 
-
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
@@ -68,23 +67,40 @@ app.use(morgan('combined'));
 
 app.use('/api/', apiLimiter);
 
+const isProd = process.env.NODE_ENV === "production";
+
 app.use(
     helmet({
+        /* ───────── HSTS ───────── */
+        strictTransportSecurity: isProd
+            ? {
+                maxAge: 63072000,
+                includeSubDomains: true,
+                preload: true,
+            }
+            : false,
+        /* ────── Content-Security-Policy ────── */
         contentSecurityPolicy: {
             useDefaults: true,
             directives: {
                 "default-src": ["'self'"],
-                "script-src": ["'self'",
-                    "'wasm-unsafe-eval'", "'unsafe-inline'", "https://cdn.plot.ly", "https://cdn.jsdelivr.net"],
+                "script-src": [
+                    "'self'",
+                    "'wasm-unsafe-eval'",
+                    "'unsafe-inline'",
+                    "https://cdn.plot.ly",
+                    "https://cdn.jsdelivr.net",
+                ],
                 "style-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
                 "font-src": ["'self'", "https://cdn.jsdelivr.net"],
                 "img-src": ["'self'", "data:"],
-                "connect-src": ["'self'"]
-            }
+                "connect-src": ["'self'"],
+                upgradeInsecureRequests: null,
+            },
         },
         crossOriginEmbedderPolicy: false,
         crossOriginResourcePolicy: { policy: "cross-origin" },
-    })
+    }),
 );
 
 app.use(express.static(path.join(__dirname, "../../", 'public')));
