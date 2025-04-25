@@ -8,6 +8,7 @@ const session = require('express-session');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const favicon = require('serve-favicon');
 
 require('module-alias/register');
 
@@ -93,15 +94,17 @@ app.use(
                 ],
                 "style-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
                 "font-src": ["'self'", "https://cdn.jsdelivr.net"],
-                "img-src": ["'self'", "data:"],
+                "img-src": ["'self'", "data:", "blob:"],
                 "connect-src": ["'self'"],
-                upgradeInsecureRequests: null,
+                "upgrade-insecure-requests": [],
             },
         },
         crossOriginEmbedderPolicy: false,
         crossOriginResourcePolicy: { policy: "cross-origin" },
     }),
 );
+
+app.use(favicon(path.join(__dirname, '../../', 'public', 'favicon.ico')));
 
 app.use(express.static(path.join(__dirname, "../../", 'public')));
 app.get('/', (req, res) => {
@@ -115,6 +118,10 @@ app.use('/admin', verifyToken, authRole('admin'), adminRoutes);
 app.use('/admin', verifyToken, authRole('admin'), adminStatsRoutes);
 
 app.use('/api/horizons', horizonRoutes);
+
+app.use((req, res, next) => {
+    res.status(404).sendFile(path.join(__dirname, '../../', 'public', '404.html'));
+});
 
 app.listen(port, () => {
     console.log(`Server is running at http://localhost:${port}`);
