@@ -4,10 +4,10 @@ import { visualizePorkchopPlot } from "./porkchop/visualize_porkchop.js";
 
 function getActualStepSize(elementId) {
     const element = document.getElementById(elementId);
-    if (!element) return "1d";
+    if (!element) return "5d";
 
     if (element.value === 'auto') {
-        return element.dataset.autoValue || "1d";
+        return element.dataset.autoValue || "5d";
     }
     return element.value;
 }
@@ -101,54 +101,27 @@ export async function fetchHorizonsData() {
         //---------------------------------------------------------------------------------------------
         dataParser = new CelestialDataParser(wasmModule);
 
-        const departureDataPtr = dataParser.allocateMemoryForData(departureParsedData, "departure");
-        const arrivalDataPtr = dataParser.allocateMemoryForData(arrivalParsedData, "arrival");
+        const params = {
+            mu: mu,
+            departurePlanetMu: departurePlanetMu,
+            arrivalPlanetMu: arrivalPlanetMu,
+            departureOrbitRadius: departureOrbitRadius,
+            arrivalOrbitRadius: arrivalOrbitRadius
+        };
 
-        if (departureDataPtr.count === 0 || arrivalDataPtr.count === 0) {
-            document.getElementById('result').textContent = "WASM memory allocation error.";
-            return;
-        }
-
-        const resultBuffers = dataParser.allocateResultBuffers(departureDataPtr.count, arrivalDataPtr.count);
-        if (!resultBuffers.c3Ptr || !resultBuffers.dv1Ptr || !resultBuffers.totalDvPtr) {
-            document.getElementById('result').textContent = "Result buffer allocation error";
-            return;
-        }
-
-        document.getElementById('result').textContent += "\nWasm function ready";
+        document.getElementById('result').textContent += "\nComputing porkchop plot...";
 
         //----------------------------------------------------------------------------------------------
         try {
-            if (typeof wasmModule._computePorkchopPlotSimple !== 'function') {
-                throw new Error("computePorkchopPlot function not found.");
+            const results = dataParser.computePorkchopPlot(
+                departureParsedData,
+                arrivalParsedData,
+                params
+            );
+
+            if (!results) {
+                throw new Error("Failed to compute porkchop plot");
             }
-
-            wasmModule._computePorkchopPlotSimple(
-                mu,
-                departureDataPtr.positionsPtr,
-                departureDataPtr.velocitiesPtr,
-                arrivalDataPtr.positionsPtr,
-                arrivalDataPtr.velocitiesPtr,
-                departureDataPtr.datesPtr,
-                arrivalDataPtr.datesPtr,
-                departureDataPtr.count,
-                arrivalDataPtr.count,
-                departurePlanetMu,
-                arrivalPlanetMu,
-                departureOrbitRadius,
-                arrivalOrbitRadius,
-                resultBuffers.c3Ptr,
-                resultBuffers.dv1Ptr,
-                resultBuffers.totalDvPtr
-            );
-
-            const results = dataParser.extractResults(
-                resultBuffers.c3Ptr,
-                resultBuffers.dv1Ptr,
-                resultBuffers.totalDvPtr,
-                departureDataPtr.count,
-                arrivalDataPtr.count
-            );
 
             document.getElementById('result').textContent += "\nPorkchop plot calculation complete";
 
@@ -162,9 +135,5 @@ export async function fetchHorizonsData() {
     } catch (error) {
         document.getElementById('result').textContent = "Server error: " + error.message;
         console.error("Error fetching Horizons data:", error);
-    } finally {
-        if (dataParser) {
-            dataParser.freeAllMemory();
-        }
     }
 }

@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 include_directories(${CMAKE_SOURCE_DIR}/external/eigen3)
 
 if (EMSCRIPTEN)
-    message(STATUS "Emscripten: SINGLE_FILE + MODULARIZE + custom export name")
+    message(STATUS "Emscripten: Using Embind with DYNAMIC_EXECUTION=0 for CSP compatibility")
 
     set(CMAKE_EXECUTABLE_SUFFIX ".js")
 
@@ -20,8 +20,10 @@ if (EMSCRIPTEN)
             "-msimd128"
             "-s WASM_BIGINT=1"
             "-O3"
-            "-s EXPORTED_FUNCTIONS=['_battin1984_wrapper','_malloc','_free']"
-            "-s EXPORTED_RUNTIME_METHODS=['malloc','free','onRuntimeInitialized']"
+            "--bind"
+            "-s DYNAMIC_EXECUTION=0"
+            "-s ALLOW_TABLE_GROWTH=1"
+            "-s EXPORTED_RUNTIME_METHODS=['onRuntimeInitialized']"
     )
 
     string (REPLACE ";" " " EM_FLAGS_STR "${EM_FLAGS}")

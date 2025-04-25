@@ -1,10 +1,13 @@
 #include <cmath>
 #include "battin1984.h"
 #include <iostream>
+#include <vector>
 
 #ifdef EMSCRIPTEN
 
 #include <wasm_simd128.h>
+#include <emscripten/bind.h>
+#include <emscripten/val.h>
 
 #endif
 
@@ -260,9 +263,8 @@ v128_t julianDateToSeconds_simd(v128_t julianDates)
 
 #endif
 
-extern "C"
-{
 #ifdef EMSCRIPTEN
+
 EMSCRIPTEN_KEEPALIVE
 #endif
 void battin1984_wrapper(double mu, const double r1[3], const double r2[3], double tof, bool prograde, double result[6])
@@ -289,6 +291,7 @@ void battin1984_wrapper(double mu, const double r1[3], const double r2[3], doubl
 #ifdef EMSCRPTEN
 EMSCRIPTEN_KEEPALIVE
 #endif
+
 void computePorkchopPlot(
         double mu,
         const double *r1,
@@ -392,23 +395,24 @@ void computePorkchopPlot(
 #ifdef EMSCRPTEN
 EMSCRIPTEN_KEEPALIVE
 #endif
+
 void computePorkchopPlot_SIMD(
         double mu,
-        const double *r1,
-        const double *v1,
-        const double *r2,
-        const double *v2,
-        const double *d1,
-        const double *d2,
+        const std::vector<double> &r1,
+        const std::vector<double> &v1,
+        const std::vector<double> &r2,
+        const std::vector<double> &v2,
+        const std::vector<double> &d1,
+        const std::vector<double> &d2,
         int num_departure_dates,
         int num_arrival_dates,
         double departure_planet_mu,
         double arrival_planet_mu,
         double departure_orbit_radius,
         double arrival_orbit_radius,
-        double *result_c3,
-        double *result_dv1,
-        double *result_total_dv
+        std::vector<double> &result_c3,
+        std::vector<double> &result_dv1,
+        std::vector<double> &result_total_dv
 )
 {
     bool prograde = true;
@@ -608,27 +612,38 @@ void computePorkchopPlot_SIMD(
 }
 
 #ifdef EMSCRIPTEN
+
 EMSCRIPTEN_KEEPALIVE
 #endif
-void computePorkchopPlotSimple(
+std::vector<double> computePorkchopPlotWrapper(
         double mu,
-        const double *r1,
-        const double *v1,
-        const double *r2,
-        const double *v2,
-        const double *d1,
-        const double *d2,
+        const emscripten::val &r1_js,
+        const emscripten::val &v1_js,
+        const emscripten::val &r2_js,
+        const emscripten::val &v2_js,
+        const emscripten::val &d1_js,
+        const emscripten::val &d2_js,
         int num_departure_dates,
         int num_arrival_dates,
         double departure_planet_mu,
         double arrival_planet_mu,
         double departure_orbit_radius,
-        double arrival_orbit_radius,
-        double *result_c3,
-        double *result_dv1,
-        double *result_total_dv
+        double arrival_orbit_radius
 )
 {
+    std::vector<double> r1 = emscripten::vecFromJSArray<double>(r1_js);
+    std::vector<double> v1 = emscripten::vecFromJSArray<double>(v1_js);
+    std::vector<double> r2 = emscripten::vecFromJSArray<double>(r2_js);
+    std::vector<double> v2 = emscripten::vecFromJSArray<double>(v2_js);
+    std::vector<double> d1 = emscripten::vecFromJSArray<double>(d1_js);
+    std::vector<double> d2 = emscripten::vecFromJSArray<double>(d2_js);
+
+    int total_results = num_departure_dates * num_arrival_dates;
+    std::vector<double> result_c3(total_results);
+    std::vector<double> result_dv1(total_results);
+    std::vector<double> result_total_dv(total_results);
+
+
     auto start = std::chrono::high_resolution_clock::now();
 
     computePorkchopPlot_SIMD(mu, r1, v1, r2, v2, d1, d2,
@@ -639,5 +654,19 @@ void computePorkchopPlotSimple(
     std::chrono::duration<double, std::milli> duration = end - start;
 
     std::cout << "Execution time: " << duration.count() << " milliseconds" << std::endl;
+
+    std::vector<double> all_results;
+    all_results.insert(all_results.end(), result_c3.begin(), result_c3.end());
+    all_results.insert(all_results.end(), result_dv1.begin(), result_dv1.end());
+    all_results.insert(all_results.end(), result_total_dv.begin(), result_total_dv.end());
+
+    return all_results;
 }
+
+EMSCRIPTEN_BINDINGS(porkchop_module)
+{
+    emscripten::register_vector<double>("VectorDouble");
+
+    emscripten::function("computePorkchopPlot", &computePorkchopPlotWrapper,
+                         emscripten::allow_raw_pointers());
 }

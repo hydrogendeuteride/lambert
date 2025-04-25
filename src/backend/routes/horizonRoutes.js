@@ -17,7 +17,7 @@ const validateCombinedRequest = [
 ];
 
 router.get('/combined', async (req, res) => {
-    const {depBody, arrBody, depStart, depEnd, arrStart, arrEnd, depStepSize, arrStepSize} = req.query;
+    const {depBody, arrBody, depStart, depEnd, arrStart, arrEnd, depStep, arrStep} = req.query;
 
     if (!depBody || !arrBody || !depStart || !depEnd || !arrStart || !arrEnd) {
         return res.status(400).json({error: "(depBody, arrBody, depStart, depEnd, arrStart, arrEnd)"});
@@ -25,8 +25,8 @@ router.get('/combined', async (req, res) => {
 
     try {
         const [depData, arrData] = await Promise.all([
-            getHorizonsData(depBody, depStart, depEnd, depStepSize),
-            getHorizonsData(arrBody, arrStart, arrEnd, arrStepSize)
+            getHorizonsData(depBody, depStart, depEnd, depStep),
+            getHorizonsData(arrBody, arrStart, arrEnd, arrStep)
         ]);
 
         const parsedDep = parseHorizonsData(depData);

@@ -49,8 +49,10 @@ export async function visualizePorkchopPlot(results, departureParsedData, arriva
     let optimalCol = -1;
 
     if (flatData.length > 0) {
-        minDv = Math.min(...flatData);
-        maxDv = Math.max(...flatData);
+        for (let i = 1; i < flatData.length; i++) {
+            if (flatData[i] < minDv) minDv = flatData[i];
+            if (flatData[i] > maxDv) maxDv = flatData[i];
+        }
         
         for (let i = 0; i < processedData.length; i++) {
             for (let j = 0; j < processedData[i].length; j++) {
