@@ -40,6 +40,17 @@ docker compose up --build
 ```
 4. The application will be available at ```http://localhost:[PORT]```, where ```[PORT]``` is specified in your .env file.
 
+## Dependencies
+Dependencies are automatically built using Github Actions.
+
+If you want to build your own, make external folder at project root and download from [here](https://eigen.tuxfamily.org/index.php?title=Main_Page).
+Unzip it inside the external folder and rename it to eigen3.
+
+ - [Eigen3](https://eigen.tuxfamily.org/index.php?title=Main_Page) for vector and Linear algebra calculation
+ - Node JS and Its dependencies(see package.json)
+ - [Plotly](https://plotly.com/) for visualization
+ - [Bootstrap](https://getbootstrap.com/) for design
+
 ## License
 
 This project is licensed under the GNU General Public License v3.0 (GPLv3).
