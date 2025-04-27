@@ -38,31 +38,25 @@ export async function visualizePorkchopPlot(results, departureParsedData, arriva
     const departureTickvals = displayDepartureDates.map(date => departureDates.indexOf(date));
     const arrivalTickvals = displayArrivalDates.map(date => arrivalDates.indexOf(date));
 
-    const processedData = results.totalDv.map(row =>
-        row.map(value => value < 0 ? null : value)
-    );
-
-    const flatData = [].concat(...processedData).filter(v => v !== null);
     let minDv = Infinity;
     let maxDv = -Infinity;
     let optimalRow = -1;
     let optimalCol = -1;
 
-    if (flatData.length > 0) {
-        for (let i = 1; i < flatData.length; i++) {
-            if (flatData[i] < minDv) minDv = flatData[i];
-            if (flatData[i] > maxDv) maxDv = flatData[i];
-        }
-        
-        for (let i = 0; i < processedData.length; i++) {
-            for (let j = 0; j < processedData[i].length; j++) {
-                if (processedData[i][j] === minDv) {
+    for (let i = 0; i < results.totalDv.length; i++) {
+        const row = results.totalDv[i];
+        for (let j = 0; j < row.length; j++) {
+            const value = row[j];
+            if (value >= 0) {
+                if (value < minDv) {
+                    minDv = value;
                     optimalRow = i;
                     optimalCol = j;
-                    break;
+                }
+                if (value > maxDv) {
+                    maxDv = value;
                 }
             }
-            if (optimalRow >= 0) break;
         }
     }
 
@@ -102,21 +96,21 @@ export async function visualizePorkchopPlot(results, departureParsedData, arriva
     const hoverTexts = [];
     for (let i = 0; i < arrivalDates.length; i++) {
         const textRow = [];
+        const row = results.totalDv[i];
         for (let j = 0; j < departureDates.length; j++) {
-            if (!processedData[i] || processedData[i][j] === null) {
+            const value = row[j];
+            if (value < 0 || value === undefined) {
                 textRow.push('');
             } else {
                 const departureDate = departureDates[j];
                 const arrivalDate = arrivalDates[i];
-                const dvValue = processedData[i][j];
                 const tofDays = tofMatrix[i][j];
 
-                let hoverText = `Departure: ${departureDate}<br>Arrival: ${arrivalDate}<br>Delta-V: ${dvValue.toFixed(2)} km/s`;
+                let hoverText = `Departure: ${departureDate}<br>Arrival: ${arrivalDate}<br>Delta-V: ${value.toFixed(2)} km/s`;
 
                 if (tofDays !== null) {
                     hoverText += `<br>Time of Flight: ${tofDays} days`;
                 }
-
                 textRow.push(hoverText);
             }
         }
@@ -124,7 +118,7 @@ export async function visualizePorkchopPlot(results, departureParsedData, arriva
     }
 
     const heatmapData = {
-        z: processedData,
+        z: results.totalDv,
         type: 'heatmap',
         colorscale: calculateColorScale(),
         colorbar: {
