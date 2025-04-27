@@ -281,7 +281,6 @@
             <div id="porkchopPlotContainer" style="width:100%; height:600px;"></div>
         </div>
     </div>
-    </div>
 
     <script type="module" src="./porkchop/porkchop_main.js"></script>
     <script type="module">
@@ -333,7 +332,26 @@
 
         window.addEventListener('DOMContentLoaded', initWasm);
     </script>
-</body>
+    <footer class="container mt-5 mb-3 text-center">
+        <hr class="border-secondary">
+        <p>
+            <a href="https://github.com/hydrogendeuteride/lambert" target="_blank" class="link-primary text-decoration-none">
+                <i class="bi bi-github"></i> View on GitHub
+            </a>
+        </p>
+    </footer>
+
+    <style>
+        @media (prefers-color-scheme: dark) {
+            footer hr {
+                border-color: var(--section-border-color) !important;
+            }
+
+            footer .text-muted {
+                color: var(--muted-text) !important;
+            }
+        }
+    </style>
 </body>
 
 </html>

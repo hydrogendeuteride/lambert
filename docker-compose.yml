@@ -18,3 +18,5 @@ services:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: change_password
       MONGO_INITDB_DATABASE: lambert
+    volumes:
+      - ./mongo_data:/data/db
