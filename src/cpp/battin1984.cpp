@@ -344,50 +344,43 @@ void computePorkchopPlot(
             if (tof < 86400.0)
                 continue;
 
-            try
-            {
-                double best_total_dv = std::numeric_limits<double>::infinity();
-                double best_dv1 = MAX_DV_CUTOFF;
-                double best_c3 = MAX_C3_CUTOFF;
 
-                for (bool shortPath: {true, false})
+            double best_total_dv = std::numeric_limits<double>::infinity();
+            double best_dv1 = MAX_DV_CUTOFF;
+            double best_c3 = MAX_C3_CUTOFF;
+
+            for (bool shortPath: {true, false})
+            {
+                auto [v1_transfer, v2_transfer] =
+                        battin1984(mu, r1_departure, r2_arrival, tof, prograde, shortPath);
+
+                vec3d v_inf_departure = v1_transfer - v1_departure;
+                vec3d v_inf_arrival = v2_arrival - v2_transfer;
+
+                double c3_departure = std::pow(v_inf_departure.norm(), 2);
+                double c3_clamped = std::min(c3_departure, MAX_C3_CUTOFF);
+
+                double v_orbit_dep = std::sqrt(departure_planet_mu / departure_orbit_radius);
+                double dv1 = std::sqrt(2 * v_orbit_dep * v_orbit_dep + c3_clamped) - v_orbit_dep;
+
+                double c3_arrival = std::pow(v_inf_arrival.norm(), 2);
+                double v_orbit_arr = std::sqrt(arrival_planet_mu / arrival_orbit_radius);
+                double dv2 = std::sqrt(2 * v_orbit_arr * v_orbit_arr + c3_arrival) - v_orbit_arr;
+
+                double total_dv = dv1 + dv2;
+
+                if (total_dv < best_total_dv)
                 {
-                    auto [v1_transfer, v2_transfer] =
-                            battin1984(mu, r1_departure, r2_arrival, tof, prograde, shortPath);
-
-                    vec3d v_inf_departure = v1_transfer - v1_departure;
-                    vec3d v_inf_arrival = v2_arrival - v2_transfer;
-
-                    double c3_departure = std::pow(v_inf_departure.norm(), 2);
-                    double c3_clamped = std::min(c3_departure, MAX_C3_CUTOFF);
-
-                    double v_orbit_dep = std::sqrt(departure_planet_mu / departure_orbit_radius);
-                    double dv1 = std::sqrt(2 * v_orbit_dep * v_orbit_dep + c3_clamped) - v_orbit_dep;
-
-                    double c3_arrival = std::pow(v_inf_arrival.norm(), 2);
-                    double v_orbit_arr = std::sqrt(arrival_planet_mu / arrival_orbit_radius);
-                    double dv2 = std::sqrt(2 * v_orbit_arr * v_orbit_arr + c3_arrival) - v_orbit_arr;
-
-                    double total_dv = dv1 + dv2;
-
-                    if (total_dv < best_total_dv)
-                    {
-                        best_total_dv = total_dv;
-                        best_dv1 = dv1;
-                        best_c3 = c3_clamped;
-                    }
+                    best_total_dv = total_dv;
+                    best_dv1 = dv1;
+                    best_c3 = c3_clamped;
                 }
+            }
 
-                result_c3[index] = std::min(best_c3, MAX_C3_CUTOFF);
-                result_dv1[index] = std::min(best_dv1, MAX_DV_CUTOFF);
-                result_total_dv[index] = std::min(best_total_dv, MAX_DV_CUTOFF);
-            }
-            catch (...)
-            {
-                result_c3[index] = MAX_C3_CUTOFF;
-                result_dv1[index] = MAX_DV_CUTOFF;
-                result_total_dv[index] = MAX_DV_CUTOFF;
-            }
+            result_c3[index] = std::min(best_c3, MAX_C3_CUTOFF);
+            result_dv1[index] = std::min(best_dv1, MAX_DV_CUTOFF);
+            result_total_dv[index] = std::min(best_total_dv, MAX_DV_CUTOFF);
+
         }
     }
 }
@@ -487,54 +480,46 @@ void computePorkchopPlot_SIMD(
                 vec3d r2_arrival = {r2[current_j * 3 + 0], r2[current_j * 3 + 1], r2[current_j * 3 + 2]};
                 vec3d v2_arrival = {v2[current_j * 3 + 0], v2[current_j * 3 + 1], v2[current_j * 3 + 2]};
 
-                try
-                {
-                    double best_total_dv = MAX_DV_CUTOFF;
-                    double best_dv1 = MAX_DV_CUTOFF;
-                    double best_c3 = MAX_C3_CUTOFF;
 
-                    for (bool shortPath: {true, false})
+                double best_total_dv = MAX_DV_CUTOFF;
+                double best_dv1 = MAX_DV_CUTOFF;
+                double best_c3 = MAX_C3_CUTOFF;
+
+                for (bool shortPath: {true, false})
+                {
+                    auto [v1_transfer, v2_transfer] =
+                            battin1984(mu, r1_departure, r2_arrival, tof, prograde, shortPath);
+
+                    vec3d v_inf_departure = v1_transfer - v1_departure;
+                    vec3d v_inf_arrival = v2_arrival - v2_transfer;
+
+                    double c3_departure_sq = v_inf_departure.x() * v_inf_departure.x() +
+                                             v_inf_departure.y() * v_inf_departure.y() +
+                                             v_inf_departure.z() * v_inf_departure.z();
+                    double c3_clamped = std::min(c3_departure_sq, MAX_C3_CUTOFF);
+
+                    double dv1 = std::sqrt(2.0 * v_orbit_dep_sq + c3_clamped) - v_orbit_dep;
+
+                    double c3_arrival_sq = v_inf_arrival.x() * v_inf_arrival.x() +
+                                           v_inf_arrival.y() * v_inf_arrival.y() +
+                                           v_inf_arrival.z() * v_inf_arrival.z();
+
+                    double dv2 = std::sqrt(2.0 * v_orbit_arr_sq + c3_arrival_sq) - v_orbit_arr;
+
+                    double total_dv = dv1 + dv2;
+
+                    if (total_dv < best_total_dv)
                     {
-                        auto [v1_transfer, v2_transfer] =
-                                battin1984(mu, r1_departure, r2_arrival, tof, prograde, shortPath);
-
-                        vec3d v_inf_departure = v1_transfer - v1_departure;
-                        vec3d v_inf_arrival = v2_arrival - v2_transfer;
-
-                        double c3_departure_sq = v_inf_departure.x() * v_inf_departure.x() +
-                                                 v_inf_departure.y() * v_inf_departure.y() +
-                                                 v_inf_departure.z() * v_inf_departure.z();
-                        double c3_clamped = std::min(c3_departure_sq, MAX_C3_CUTOFF);
-
-                        double dv1 = std::sqrt(2.0 * v_orbit_dep_sq + c3_clamped) - v_orbit_dep;
-
-                        double c3_arrival_sq = v_inf_arrival.x() * v_inf_arrival.x() +
-                                               v_inf_arrival.y() * v_inf_arrival.y() +
-                                               v_inf_arrival.z() * v_inf_arrival.z();
-
-                        double dv2 = std::sqrt(2.0 * v_orbit_arr_sq + c3_arrival_sq) - v_orbit_arr;
-
-                        double total_dv = dv1 + dv2;
-
-                        if (total_dv < best_total_dv)
-                        {
-                            best_total_dv = total_dv;
-                            best_dv1 = dv1;
-                            best_c3 = c3_clamped;
-                        }
+                        best_total_dv = total_dv;
+                        best_dv1 = dv1;
+                        best_c3 = c3_clamped;
                     }
+                }
 
-                    results[k][0] = std::min(best_c3, MAX_C3_CUTOFF);
-                    results[k][1] = std::min(best_dv1, MAX_DV_CUTOFF);
-                    results[k][2] = std::min(best_total_dv, MAX_DV_CUTOFF);
-                }
-                catch (...)
-                {
-                    results[k][0] = MAX_C3_CUTOFF;
-                    results[k][1] = MAX_DV_CUTOFF;
-                    results[k][2] = MAX_DV_CUTOFF;
-                    possible[k] = false;
-                }
+                results[k][0] = std::min(best_c3, MAX_C3_CUTOFF);
+                results[k][1] = std::min(best_dv1, MAX_DV_CUTOFF);
+                results[k][2] = std::min(best_total_dv, MAX_DV_CUTOFF);
+
             }
 
             v128_t result_c3_v = wasm_f64x2_make(results[0][0], results[1][0]);
