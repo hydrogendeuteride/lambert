@@ -23,7 +23,6 @@ if (EMSCRIPTEN)
             "--bind"
             "-s DYNAMIC_EXECUTION=0"
             "-s ALLOW_TABLE_GROWTH=1"
-            "-s EXPORTED_RUNTIME_METHODS=['onRuntimeInitialized']"
             "-s INITIAL_MEMORY=128MB -s ALLOW_MEMORY_GROWTH=0"
     )
 
