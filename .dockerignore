@@ -1,0 +1,10 @@
+.git
+.github
+.env
+.env.*
+node_modules
+mongo_data
+build
+external
+emsdk
+*.log
