@@ -5,7 +5,7 @@
 #include <tuple>
 #include <chrono>
 
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
 
@@ -24,7 +24,7 @@ std::tuple<vec3d, vec3d> battin1984(double mu, vec3d &r1, vec3d &r2, double tof,
 extern "C"
 {
 
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 EMSCRIPTEN_KEEPALIVE
 #endif
 void battin1984_wrapper(double mu, const double r1[3], const double r2[3], double tof, bool prograde, double result[6]);

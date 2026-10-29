@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 
 #include <wasm_simd128.h>
 #include <emscripten/bind.h>
@@ -244,7 +244,7 @@ double julianDateToSeconds(double julianDate)
     return (julianDate - 2451545.0) * SECONDS_PER_DAY;
 }
 
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 
 v128_t julianDateToSeconds_simd(v128_t julianDates)
 {
@@ -263,7 +263,7 @@ v128_t julianDateToSeconds_simd(v128_t julianDates)
 
 #endif
 
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 
 EMSCRIPTEN_KEEPALIVE
 #endif
@@ -596,7 +596,7 @@ void computePorkchopPlot_SIMD(
     }
 }
 
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 
 EMSCRIPTEN_KEEPALIVE
 #endif
