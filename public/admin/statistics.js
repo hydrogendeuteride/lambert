@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         redirectToLogin();
         return;
     }
-    validateAdminToken(token);
+    if (!await validateAdminToken(token)) return;
 
     await loadPopularRoutes(token);
     await loadTopUsers(token);
@@ -50,7 +50,11 @@ async function loadPopularRoutes(token) {
 
         data.forEach(item => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${item._id.from}</td><td>${item._id.to}</td><td>${item.count}</td>`;
+            for (const value of [item._id.from, item._id.to, item.count]) {
+                const td = document.createElement('td');
+                td.textContent = value;
+                tr.appendChild(td);
+            }
             tbody.appendChild(tr);
         });
     } catch (err) {
@@ -70,7 +74,11 @@ async function loadTopUsers(token) {
 
         data.forEach(user => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${user.userIdentifier}</td><td>${user.totalCalls}</td>`;
+            for (const value of [user.userIdentifier, user.totalCalls]) {
+                const td = document.createElement('td');
+                td.textContent = value;
+                tr.appendChild(td);
+            }
             tbody.appendChild(tr);
         });
     } catch (err) {

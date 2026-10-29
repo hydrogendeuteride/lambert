@@ -29,6 +29,11 @@ if (!mongoURI || !sessionSecret) {
 
 const app = express();
 
+// Only explicitly configured reverse proxies may supply the client IP.
+if (process.env.TRUSTED_PROXIES) {
+    app.set('trust proxy', process.env.TRUSTED_PROXIES.split(',').map(ip => ip.trim()).filter(Boolean));
+}
+
 mongoose.connect(mongoURI)
     .then(() => console.log('MongoDB connected'))
     .catch(err => {

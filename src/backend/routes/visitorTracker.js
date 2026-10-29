@@ -51,12 +51,11 @@ router.use('/', async (req, res, next) => {
                 dailyVisits: 1,
                 totalVisits: prevTotal + 1
             });
-            next();
         }
     } catch (err) {
         console.error('Failed to track daily visitor:', err);
-        next();
     }
+    next();
 });
 
 module.exports = router;

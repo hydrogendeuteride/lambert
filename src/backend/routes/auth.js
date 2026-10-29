@@ -5,6 +5,24 @@ const { body, validationResult } = require('express-validator');
 const User = require('../models/user');
 const { verifyToken, authRole } = require('../middlewares/auth');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
+
+// Keep the default socket-IP trust boundary; never trust arbitrary forwarding headers.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Try again later.' }
+});
+const registrationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many registration attempts. Try again later.' }
+});
 
 const secretKey = process.env.SESSION_SECRET;
 const tokenExpiresIn = process.env.TOKEN_EXPIRES_IN || '24h';
@@ -21,14 +39,13 @@ const loginValidation = [
   body('password').notEmpty().withMessage('Enter password')
 ];
 
-router.post('/users', registerValidation, async (req, res) => {
+router.post('/users', registrationLimiter, registerValidation, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
 
   const { name, email, password } = req.body;
-  let { role } = req.body;
 
 
   try {
@@ -37,16 +54,8 @@ router.post('/users', registerValidation, async (req, res) => {
       return res.status(403).json({ error: 'Reached maximum user count' });
     }
 
-    if (userCount === 0) {
-      role = 'admin';
-    } else if (role == 'admin') {
-      const adminExists = await User.findOne({ role: 'admin' });
-      if (adminExists) {
-        return res.status(400).json({ error: 'An admin account already exists' });
-      }
-    } else {
-      role = 'user';
-    }
+    // Public registration cannot choose privileges. Preserve first-user bootstrap.
+    const role = userCount === 0 ? 'admin' : 'user';
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -65,7 +74,7 @@ router.post('/users', registerValidation, async (req, res) => {
   }
 });
 
-router.post('/login', loginValidation, async (req, res) => {
+router.post('/login', loginLimiter, loginValidation, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -111,7 +120,7 @@ router.post('/verify-token', (req, res) => {
   }
 
   try {
-    const decoded = jwt.verify(token, secretKey);
+    const decoded = jwt.verify(token, secretKey, { algorithms: ['HS256'] });
 
     const currentTime = Math.floor(Date.now() / 1000);
     const tokenExpiry = decoded.exp;

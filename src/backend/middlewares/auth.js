@@ -2,13 +2,13 @@ const jwt = require('jsonwebtoken');
 const secretKey = process.env.SESSION_SECRET;
 
 const verifyToken = (req, res, next) => {
-    const token = req.headers.authorization?.split(' ')[1];
+    const token = /^Bearer ([^\s]+)$/i.exec(req.headers.authorization || '')?.[1];
     if (!token) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
   
     try {
-      const decoded = jwt.verify(token, secretKey);
+      const decoded = jwt.verify(token, secretKey, { algorithms: ['HS256'] });
       req.user = decoded;
       next();
     } catch (err) {
